@@ -60,34 +60,36 @@ class Vehicle {
     update() {
         if (!isRunning) return;
 
-        const minGap = 10;
-        let vehicleInFront = null;
-        let minDistance = Infinity;
-
+        // Unified collision detection
+        let shouldStop = false;
         for (const other of vehicles) {
-            if (this.id === other.id || this.direction !== other.direction) continue;
+            if (this.id === other.id) continue;
 
-            let distance = -1;
-            // Check if other vehicle is in the same lane and ahead
-            if (this.direction === 'down' && other.y > this.y && Math.abs(this.x - other.x) < this.width) {
-                distance = other.y - this.y;
-            } else if (this.direction === 'up' && other.y < this.y && Math.abs(this.x - other.x) < this.width) {
-                distance = this.y - other.y;
-            } else if (this.direction === 'right' && other.x > this.x && Math.abs(this.y - other.y) < this.height) {
-                distance = other.x - this.x;
-            } else if (this.direction === 'left' && other.x < this.x && Math.abs(this.y - other.y) < this.height) {
-                distance = this.x - other.x;
-            }
+            if (this.predictCollision(other)) {
+                // Right-of-way: vertical traffic has priority
+                const isVertical = this.direction === 'up' || this.direction === 'down';
+                const isOtherVertical = other.direction === 'up' || other.direction === 'down';
 
-            if (distance > 0 && distance < minDistance) {
-                minDistance = distance;
-                vehicleInFront = other;
+                if (isVertical && !isOtherVertical) {
+                    // I have priority
+                    shouldStop = false;
+                } else if (!isVertical && isOtherVertical) {
+                    // Other has priority
+                    shouldStop = true;
+                } else {
+                    // Same direction, car in front has priority
+                    if ((this.direction === 'down' && this.y < other.y) ||
+                        (this.direction === 'up' && this.y > other.y) ||
+                        (this.direction === 'right' && this.x < other.x) ||
+                        (this.direction === 'left' && this.x > other.x)) {
+                        shouldStop = true;
+                    }
+                }
+                if (shouldStop) break;
             }
         }
-        
-        const safeDistance = (this.direction === 'down' || this.direction === 'up' ? this.height : this.width) + minGap;
 
-        if (vehicleInFront && minDistance < safeDistance) {
+        if (shouldStop) {
             this.speed = 0;
             this.isStopped = true;
         } else {
@@ -96,8 +98,7 @@ class Vehicle {
         }
 
         if (this.isStopped) {
-            // No need to update position if stopped
-            return;
+            return; // Don't update position if stopped
         }
 
         switch (this.direction) {
@@ -119,6 +120,33 @@ class Vehicle {
                 break;
         }
         this.group.translation.set(this.x, this.y);
+    }
+
+    getBoundingBox(x = this.x, y = this.y) {
+        return {
+            left: x - this.width / 2,
+            right: x + this.width / 2,
+            top: y - this.height / 2,
+            bottom: y + this.height / 2
+        };
+    }
+
+    predictCollision(other) {
+        const nextX = this.x + (this.direction === 'right' ? this.speed : (this.direction === 'left' ? -this.speed : 0));
+        const nextY = this.y + (this.direction === 'down' ? this.speed : (this.direction === 'up' ? -this.speed : 0));
+
+        const myNextBox = this.getBoundingBox(nextX, nextY);
+        const otherBox = other.getBoundingBox();
+
+        // Add a small buffer
+        const buffer = 5;
+
+        return (
+            myNextBox.left < otherBox.right + buffer &&
+            myNextBox.right > otherBox.left - buffer &&
+            myNextBox.top < otherBox.bottom + buffer &&
+            myNextBox.bottom > otherBox.top - buffer
+        );
     }
     
     reset() {
