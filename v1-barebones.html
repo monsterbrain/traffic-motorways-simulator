@@ -3,42 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traffic Simulator - v1 Barebones</title>
+    <title>Traffic Simulator - Canvas</title>
     <link rel="stylesheet" href="main.css">
 </head>
 <body>
     <div class="container">
-        <h1>Traffic Simulator - v1 Barebones</h1>
+        <h1>Traffic Simulator - Cross Road</h1>
         <div class="stage-controls">
             <label for="stage-select">Switch Version:</label>
             <select id="stage-select" onchange="switchStage()">
-                <option value="v1-barebones.html" selected>v1-barebones</option>
-                <option value="v2-collision-test.html">v2-collision-test</option>
+                <option value="v1-barebones.html">v1-barebones</option>
+                <option value="v2-collision-test.html" selected>v2-collision-test</option>
             </select>
         </div>
         <canvas id="traffic-canvas" width="800" height="600"></canvas>
+        
         <div class="controls">
             <button onclick="startSimulation()">Start Simulation</button>
             <button onclick="pauseSimulation()">Pause</button>
             <button onclick="resetSimulation()">Reset</button>
             <button onclick="addMoreCars()">Add More Cars</button>
         </div>
+        
         <div class="stats" id="stats">
             Cars: 8 | Running: No | FPS: 0
         </div>
+        
         <div class="info">
             <p><strong>Simulation:</strong> Cross road with vertical and horizontal traffic</p>
             <p><strong>Blue cars:</strong> Moving top to bottom | <strong>Red cars:</strong> Moving left to right</p>
         </div>
     </div>
-    <script>
-    function switchStage() {
-        const val = document.getElementById('stage-select').value;
-        if (window.location.pathname.indexOf(val) === -1) {
-            window.location.href = val;
-        }
-    }
-    </script>
-    <script src="v1-barebones.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/two.js/0.8.10/two.min.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
