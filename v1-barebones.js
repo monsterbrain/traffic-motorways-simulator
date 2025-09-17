@@ -1,12 +1,14 @@
-// Canvas setup
+// Two.js setup
 const canvas = document.getElementById('traffic-canvas');
-const ctx = canvas.getContext('2d');
+const two = new Two({
+    width: 800,
+    height: 600,
+    domElement: canvas
+});
 
 // Simulation state
 let isRunning = false;
 let vehicles = [];
-let animationId;
-let lastTime = 0;
 let fps = 0;
 
 // Vehicle class
@@ -22,6 +24,35 @@ class Vehicle {
         this.width = direction === 'down' || direction === 'up' ? 25 : 50;
         this.height = direction === 'down' || direction === 'up' ? 50 : 25;
         this.id = Math.random().toString(36).substr(2, 9);
+
+        // Two.js representation
+        this.group = new Two.Group();
+
+        const body = two.makeRoundedRectangle(0, 0, this.width, this.height, 5);
+        body.fill = this.color;
+        body.stroke = '#2c3e50';
+        body.linewidth = 2;
+
+        this.group.add(body);
+
+        const windows = new Two.Group();
+        if (this.direction === 'down' || this.direction === 'up') {
+            const w1 = two.makeRectangle(0, -10, 16, 10);
+            const w2 = two.makeRectangle(0, 10, 16, 10);
+            windows.add(w1, w2);
+        } else {
+            const w1 = two.makeRectangle(-10, 0, 10, 16);
+            const w2 = two.makeRectangle(10, 0, 10, 16);
+            windows.add(w1, w2);
+        }
+
+        windows.fill = '#87ceeb';
+        windows.stroke = '#2c3e50';
+        windows.linewidth = 1;
+
+        this.group.add(windows);
+        this.group.translation.set(this.x, this.y);
+        two.add(this.group);
     }
     
     update() {
@@ -30,143 +61,77 @@ class Vehicle {
         switch(this.direction) {
             case 'down':
                 this.y += this.speed;
-                if (this.y > canvas.height + 50) {
-                    this.y = -50;
-                }
+                if (this.y > two.height + 50) this.y = -50;
                 break;
             case 'right':
                 this.x += this.speed;
-                if (this.x > canvas.width + 50) {
-                    this.x = -50;
-                }
+                if (this.x > two.width + 50) this.x = -50;
                 break;
             case 'up':
                 this.y -= this.speed;
-                if (this.y < -50) {
-                    this.y = canvas.height + 50;
-                }
+                if (this.y < -50) this.y = two.height + 50;
                 break;
             case 'left':
                 this.x -= this.speed;
-                if (this.x < -50) {
-                    this.x = canvas.width + 50;
-                }
+                if (this.x < -50) this.x = two.width + 50;
                 break;
         }
-    }
-    
-    draw(ctx) {
-        ctx.save();
-        
-        // Draw car body
-        ctx.fillStyle = this.color;
-        ctx.strokeStyle = '#2c3e50';
-        ctx.lineWidth = 2;
-        
-        ctx.fillRect(
-            this.x - this.width/2, 
-            this.y - this.height/2, 
-            this.width, 
-            this.height
-        );
-        ctx.strokeRect(
-            this.x - this.width/2, 
-            this.y - this.height/2, 
-            this.width, 
-            this.height
-        );
-        
-        // Draw windows
-        ctx.fillStyle = '#87ceeb';
-        ctx.strokeStyle = '#2c3e50';
-        ctx.lineWidth = 1;
-        
-        if (this.direction === 'down' || this.direction === 'up') {
-            // Vertical car - draw horizontal windows
-            ctx.fillRect(this.x - 8, this.y - 15, 16, 10);
-            ctx.strokeRect(this.x - 8, this.y - 15, 16, 10);
-            ctx.fillRect(this.x - 8, this.y + 5, 16, 10);
-            ctx.strokeRect(this.x - 8, this.y + 5, 16, 10);
-        } else {
-            // Horizontal car - draw vertical windows
-            ctx.fillRect(this.x - 15, this.y - 8, 10, 16);
-            ctx.strokeRect(this.x - 15, this.y - 8, 10, 16);
-            ctx.fillRect(this.x + 5, this.y - 8, 10, 16);
-            ctx.strokeRect(this.x + 5, this.y - 8, 10, 16);
-        }
-        
-        ctx.restore();
+        this.group.translation.set(this.x, this.y);
     }
     
     reset() {
         this.x = this.startX;
         this.y = this.startY;
+        this.group.translation.set(this.x, this.y);
     }
 }
 
 // Road drawing functions
 function drawRoads() {
-    ctx.save();
+    // Roads
+    const roads = new Two.Group();
+    const verticalRoad = two.makeRectangle(400, 300, 120, 600);
+    verticalRoad.fill = '#555';
+    verticalRoad.stroke = '#333';
+    verticalRoad.linewidth = 2;
     
-    // Road color
-    ctx.fillStyle = '#555';
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 2;
+    const horizontalRoad = two.makeRectangle(400, 300, 800, 120);
+    horizontalRoad.fill = '#555';
+    horizontalRoad.stroke = '#333';
+    horizontalRoad.linewidth = 2;
+
+    roads.add(verticalRoad, horizontalRoad);
     
-    // Vertical road
-    ctx.fillRect(340, 0, 120, canvas.height);
-    ctx.strokeRect(340, 0, 120, canvas.height);
+    // Lane dividers
+    const dividers = new Two.Group();
+    const v1 = two.makeLine(400, 0, 400, 240);
+    const v2 = two.makeLine(400, 360, 400, 600);
+    const h1 = two.makeLine(0, 300, 340, 300);
+    const h2 = two.makeLine(460, 300, 800, 300);
     
-    // Horizontal road
-    ctx.fillRect(0, 240, canvas.width, 120);
-    ctx.strokeRect(0, 240, canvas.width, 120);
+    dividers.add(v1, v2, h1, h2);
+    dividers.stroke = '#fff';
+    dividers.linewidth = 3;
+    dividers.dashes = [15, 15];
     
-    // Draw lane dividers
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 3;
-    ctx.setLineDash([15, 15]);
+    // Intersection
+    const intersection = two.makeRectangle(400, 300, 120, 120);
+    intersection.fill = '#666';
+    intersection.stroke = '#333';
+    intersection.linewidth = 2;
     
-    // Vertical divider
-    ctx.beginPath();
-    ctx.moveTo(400, 0);
-    ctx.lineTo(400, 240);
-    ctx.stroke();
-    
-    ctx.beginPath();
-    ctx.moveTo(400, 360);
-    ctx.lineTo(400, canvas.height);
-    ctx.stroke();
-    
-    // Horizontal divider
-    ctx.beginPath();
-    ctx.moveTo(0, 300);
-    ctx.lineTo(340, 300);
-    ctx.stroke();
-    
-    ctx.beginPath();
-    ctx.moveTo(460, 300);
-    ctx.lineTo(canvas.width, 300);
-    ctx.stroke();
-    
-    // Reset line dash
-    ctx.setLineDash([]);
-    
-    // Draw intersection
-    ctx.fillStyle = '#666';
-    ctx.fillRect(340, 240, 120, 120);
-    ctx.strokeRect(340, 240, 120, 120);
-    
-    ctx.restore();
+    two.add(roads, dividers, intersection);
 }
 
 // Initialize vehicles
 function initVehicles() {
+    vehicles.forEach(v => v.group.remove());
     vehicles = [];
     
     // 4 cars going down (blue) - left lane
     for (let i = 0; i < 4; i++) {
         vehicles.push(new Vehicle(
-            370,  // Left lane of vertical road
+            370,
             -100 - (i * 100),
             'down',
             '#3498db',
@@ -175,10 +140,10 @@ function initVehicles() {
     }
     
     // 4 cars going right (red) - top lane  
-    for (let i = 0; i < 4; i++) {
+    for (let i = t = 0; i < 4; i++) {
         vehicles.push(new Vehicle(
             -100 - (i * 100),
-            270,  // Top lane of horizontal road
+            270,
             'right',
             '#e74c3c',
             2 + Math.random() * 1.5
@@ -187,55 +152,43 @@ function initVehicles() {
 }
 
 // Animation loop
-function animate(currentTime) {
-    if (currentTime - lastTime >= 16) { // ~60 FPS
-        // Clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw roads
-        drawRoads();
-        
-        // Update and draw vehicles
-        vehicles.forEach(vehicle => {
-            vehicle.update();
-            vehicle.draw(ctx);
-        });
-        
-        // Calculate FPS
-        fps = Math.round(1000 / (currentTime - lastTime));
-        lastTime = currentTime;
-        
-        // Update stats
-        updateStats();
-    }
+let lastTime = 0;
+two.bind('update', function(frameCount, timeDelta) {
+    if (!timeDelta) return;
     
-    animationId = requestAnimationFrame(animate);
-}
+    vehicles.forEach(vehicle => {
+        vehicle.update();
+    });
+
+    if (frameCount % 10 === 0) {
+        fps = Math.round(1000 / timeDelta);
+    }
+    updateStats();
+});
 
 // Control functions
 function startSimulation() {
     if (!isRunning) {
         isRunning = true;
-        if (!animationId) {
-            animate(0);
-        }
+        two.play();
         console.log('Simulation started');
     }
 }
 
 function pauseSimulation() {
     isRunning = false;
+    two.pause();
     console.log('Simulation paused');
 }
 
 function resetSimulation() {
     isRunning = false;
-    vehicles.forEach(vehicle => vehicle.reset());
+    two.pause();
+    initVehicles();
     console.log('Simulation reset');
 }
 
 function addMoreCars() {
-    // Add 2 more cars in each direction
     vehicles.push(new Vehicle(370, -50, 'down', '#3498db', 2 + Math.random() * 1.5));
     vehicles.push(new Vehicle(-50, 270, 'right', '#e74c3c', 2 + Math.random() * 1.5));
     console.log(`Added more cars. Total: ${vehicles.length}`);
@@ -247,8 +200,8 @@ function updateStats() {
 }
 
 // Initialize and start
+drawRoads();
 initVehicles();
-animate(0);
 
 // Auto start after 1 second
 setTimeout(() => {
