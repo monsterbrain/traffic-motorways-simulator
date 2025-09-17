@@ -266,7 +266,7 @@ function addMoreCars() {
 
 function updateStats() {
     const statsEl = document.getElementById('stats');
-    statsEl.textContent = `Cars: ${vehicles.length} | Running: ${isRunning ? 'Yes' : 'No'} | FPS: ${fps}`;
+    statsEl.textContent = `Cars: ${cars.length} | Running: ${isRunning ? 'Yes' : 'No'} | FPS: ${fps}`;
 }
 
 // Initialize and start
