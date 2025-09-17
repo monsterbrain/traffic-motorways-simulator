@@ -12,8 +12,8 @@
         <div class="stage-controls">
             <label for="stage-select">Switch Version:</label>
             <select id="stage-select" onchange="switchStage()">
+                <option value="index.html" selected>Latest</option>
                 <option value="v1-barebones.html">v1-barebones</option>
-                <option value="v2-collision-test.html" selected>v2-collision-test</option>
             </select>
         </div>
         <canvas id="traffic-canvas" width="800" height="600"></canvas>
@@ -36,6 +36,14 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/two.js/0.8.10/two.min.js"></script>
-    <script src="main.js"></script>
+    <script src="main.js">
+    </script>
+     function switchStage() {
+        const val = document.getElementById('stage-select').value;
+        if (window.location.pathname.indexOf(val) === -1) {
+            window.location.href = val;
+        }
+    }
+    </script>
 </body>
 </html>
