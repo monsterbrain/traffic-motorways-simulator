@@ -8,11 +8,11 @@ const two = new Two({
 
 // Simulation state
 let isRunning = false;
-let vehicles = [];
+let cars = [];
 let fps = 0;
 
-// Vehicle class
-class Vehicle {
+// Car class
+class Car {
     constructor(x, y, direction, color = '#3498db', speed = 2) {
         this.x = x;
         this.y = y;
@@ -62,7 +62,7 @@ class Vehicle {
 
         // Unified collision detection
         let shouldStop = false;
-        for (const other of vehicles) {
+        for (const other of cars) {
             if (this.id === other.id) continue;
 
             if (this.predictCollision(other)) {
@@ -193,14 +193,14 @@ function drawRoads() {
     two.add(roads, dividers, intersection);
 }
 
-// Initialize vehicles
-function initVehicles() {
-    vehicles.forEach(v => v.group.remove());
-    vehicles = [];
+// Initialize cars
+function initCars() {
+    cars.forEach(car => car.group.remove());
+    cars = [];
     
     // 4 cars going down (blue) - left lane
     for (let i = 0; i < 4; i++) {
-        vehicles.push(new Vehicle(
+        cars.push(new Car(
             370,
             -100 - (i * 100),
             'down',
@@ -211,7 +211,7 @@ function initVehicles() {
     
     // 4 cars going right (red) - top lane  
     for (let i = t = 0; i < 4; i++) {
-        vehicles.push(new Vehicle(
+        cars.push(new Car(
             -100 - (i * 100),
             270,
             'right',
@@ -226,8 +226,8 @@ let lastTime = 0;
 two.bind('update', function(frameCount, timeDelta) {
     if (!timeDelta) return;
     
-    vehicles.forEach(vehicle => {
-        vehicle.update();
+    cars.forEach(car => {
+        car.update();
     });
 
     if (frameCount % 10 === 0) {
@@ -254,14 +254,14 @@ function pauseSimulation() {
 function resetSimulation() {
     isRunning = false;
     two.pause();
-    initVehicles();
+    initCars();
     console.log('Simulation reset');
 }
 
 function addMoreCars() {
-    vehicles.push(new Vehicle(370, -50, 'down', '#3498db', 2 + Math.random() * 1.5));
-    vehicles.push(new Vehicle(-50, 270, 'right', '#e74c3c', 2 + Math.random() * 1.5));
-    console.log(`Added more cars. Total: ${vehicles.length}`);
+    cars.push(new Car(370, -50, 'down', '#3498db', 2 + Math.random() * 1.5));
+    cars.push(new Car(-50, 270, 'right', '#e74c3c', 2 + Math.random() * 1.5));
+    console.log(`Added more cars. Total: ${cars.length}`);
 }
 
 function updateStats() {
@@ -271,7 +271,7 @@ function updateStats() {
 
 // Initialize and start
 drawRoads();
-initVehicles();
+initCars();
 
 // Auto start after 1 second
 setTimeout(() => {
