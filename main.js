@@ -20,6 +20,8 @@ class Vehicle {
         this.startY = y;
         this.direction = direction;
         this.speed = speed;
+        this.originalSpeed = speed;
+        this.isStopped = false;
         this.color = color;
         this.width = direction === 'down' || direction === 'up' ? 25 : 50;
         this.height = direction === 'down' || direction === 'up' ? 50 : 25;
@@ -57,8 +59,48 @@ class Vehicle {
     
     update() {
         if (!isRunning) return;
+
+        const minGap = 10;
+        let vehicleInFront = null;
+        let minDistance = Infinity;
+
+        for (const other of vehicles) {
+            if (this.id === other.id || this.direction !== other.direction) continue;
+
+            let distance = -1;
+            // Check if other vehicle is in the same lane and ahead
+            if (this.direction === 'down' && other.y > this.y && Math.abs(this.x - other.x) < this.width) {
+                distance = other.y - this.y;
+            } else if (this.direction === 'up' && other.y < this.y && Math.abs(this.x - other.x) < this.width) {
+                distance = this.y - other.y;
+            } else if (this.direction === 'right' && other.x > this.x && Math.abs(this.y - other.y) < this.height) {
+                distance = other.x - this.x;
+            } else if (this.direction === 'left' && other.x < this.x && Math.abs(this.y - other.y) < this.height) {
+                distance = this.x - other.x;
+            }
+
+            if (distance > 0 && distance < minDistance) {
+                minDistance = distance;
+                vehicleInFront = other;
+            }
+        }
         
-        switch(this.direction) {
+        const safeDistance = (this.direction === 'down' || this.direction === 'up' ? this.height : this.width) + minGap;
+
+        if (vehicleInFront && minDistance < safeDistance) {
+            this.speed = 0;
+            this.isStopped = true;
+        } else {
+            this.speed = this.originalSpeed;
+            this.isStopped = false;
+        }
+
+        if (this.isStopped) {
+            // No need to update position if stopped
+            return;
+        }
+
+        switch (this.direction) {
             case 'down':
                 this.y += this.speed;
                 if (this.y > two.height + 50) this.y = -50;

@@ -1,5 +1,11 @@
 # History
 
+## 2025-09-17
+
+- Added collision check for cars.
+- Cars now stop if they are too close to the vehicle in front and proceed when there is enough space.
+- The minimum gap between cars is set to 10 pixels.
+
 ## 2025-09-16
 
 - Migrated the drawing from HTML5 Canvas to Two.js framework.
