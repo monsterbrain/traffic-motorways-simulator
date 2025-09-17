@@ -28,7 +28,7 @@ class Vehicle {
         // Two.js representation
         this.group = new Two.Group();
 
-        const body = two.makeRectangle(0, 0, this.width, this.height);
+        const body = two.makeRoundedRectangle(0, 0, this.width, this.height, 5);
         body.fill = this.color;
         body.stroke = '#2c3e50';
         body.linewidth = 2;
