@@ -3,41 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traffic Simulator - Canvas</title>
+    <title>Traffic Simulator - Nodes</title>
     <link rel="stylesheet" href="main.css">
 </head>
 <body>
     <div class="container">
-        <h1>Traffic Simulator - Cross Road</h1>
+        <h1>Traffic Simulator - Car Following Nodes</h1>
         <div class="stage-controls">
             <label for="stage-select">Switch Version:</label>
             <select id="stage-select" onchange="switchStage()">
-                <option value="index.html" selected>Latest</option>
-                <option value="nodes.html">Nodes</option>
+                <option value="index.html">Latest</option>
+                <option value="nodes.html" selected>Nodes</option>
                 <option value="v1-barebones.html">v1-barebones</option>
             </select>
         </div>
         <canvas id="traffic-canvas" width="800" height="600"></canvas>
-        
+
         <div class="controls">
-            <button onclick="startSimulation()">Start Simulation</button>
+            <button onclick="startSimulation()">Start</button>
             <button onclick="pauseSimulation()">Pause</button>
-            <button onclick="resetSimulation()">Reset</button>
-            <button onclick="addMoreCars()">Add More Cars</button>
-        </div>
-        
-        <div class="stats" id="stats">
-            Cars: 8 | Running: No | FPS: 0
-        </div>
-        
-        <div class="info">
-            <p><strong>Simulation:</strong> Cross road with vertical and horizontal traffic</p>
-            <p><strong>Blue cars:</strong> Moving top to bottom | <strong>Red cars:</strong> Moving left to right</p>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/two.js/0.8.10/two.min.js"></script>
-    <script src="main.js"></script>
+    <script src="nodes.js"></script>
     <script>
      function switchStage() {
         const val = document.getElementById('stage-select').value;
