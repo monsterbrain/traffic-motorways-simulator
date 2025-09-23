@@ -3,31 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traffic Simulator - Nodes</title>
+    <title>Traffic Simulator - Road Editor</title>
     <link rel="stylesheet" href="main.css">
 </head>
 <body>
     <div class="container">
-        <h1>Traffic Simulator - Car Following Nodes</h1>
+        <h1>Road Editor</h1>
+        <div class="toolbox">
+            <button id="place-node-btn">Place Node</button>
+            <button id="create-road-btn">Create Road</button>
+        </div>
         <div class="stage-controls">
             <label for="stage-select">Switch Version:</label>
             <select id="stage-select" onchange="switchStage()">
                 <option value="index.html">Latest</option>
-                <option value="nodes.html" selected>Nodes</option>
+                <option value="nodes.html">Nodes</option>
                 <option value="v1-barebones.html">v1-barebones</option>
-                <option value="road-editor.html">Road Editor</option>
+                <option value="road-editor.html" selected>Road Editor</option>
             </select>
         </div>
         <canvas id="traffic-canvas" width="800" height="600"></canvas>
-
-        <div class="controls">
-            <button onclick="startSimulation()">Start</button>
-            <button onclick="pauseSimulation()">Pause</button>
-        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/two.js/0.8.10/two.min.js"></script>
-    <script src="nodes.js"></script>
+    <script src="road-editor.js"></script>
     <script>
      function switchStage() {
         const val = document.getElementById('stage-select').value;

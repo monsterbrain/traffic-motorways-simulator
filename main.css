@@ -69,3 +69,28 @@ button:hover {
     text-align: center;
     margin-bottom: 20px;
 }
+
+.toolbox {
+    background: #fff;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.toolbox button {
+    background: #f8f9fa;
+    color: #333;
+    border: 1px solid #ddd;
+    width: 120px;
+}
+
+.toolbox button.active {
+    background: #e9ecef;
+    border-color: #3498db;
+    color: #3498db;
+    font-weight: bold;
+}
