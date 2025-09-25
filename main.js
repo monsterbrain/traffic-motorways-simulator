@@ -6,276 +6,297 @@ const two = new Two({
     domElement: canvas
 });
 
-// Simulation state
+// --- STATE MANAGEMENT ---
+let currentMode = 'editor'; // 'editor' or 'simulation'
 let isRunning = false;
 let cars = [];
+let nodes = [];
+let roads = [];
+let selectedNode = null;
+let currentTool = 'place-node';
 let fps = 0;
 
-// Car class
+// --- DOM ELEMENTS ---
+const editorTools = document.getElementById('editor-tools');
+const simControls = document.getElementById('simulation-controls');
+const startSimContainer = document.getElementById('start-simulation-container');
+const startSimBtn = document.getElementById('start-simulation-btn');
+const placeNodeBtn = document.getElementById('place-node-btn');
+const createRoadBtn = document.getElementById('create-road-btn');
+const modeStatus = document.getElementById('mode-status');
+
+// --- EDITOR LOGIC (from road-editor.js) ---
+function setActiveTool(tool) {
+    currentTool = tool;
+    placeNodeBtn.classList.toggle('active', tool === 'place-node');
+    createRoadBtn.classList.toggle('active', tool === 'create-road');
+}
+
+placeNodeBtn.addEventListener('click', () => setActiveTool('place-node'));
+createRoadBtn.addEventListener('click', () => setActiveTool('create-road'));
+
+canvas.addEventListener('click', (e) => {
+    if (currentMode !== 'editor') return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (currentTool === 'place-node') {
+        addNode(x, y);
+    } else if (currentTool === 'create-road') {
+        handleRoadCreation(x, y);
+    }
+});
+
+function addNode(x, y) {
+    const newNode = { x, y, id: nodes.length, connections: [] };
+    nodes.push(newNode);
+    drawEditor();
+}
+
+function handleRoadCreation(x, y) {
+    const clickedNode = findNodeAt(x, y);
+    if (!clickedNode) {
+        selectedNode = null;
+        drawEditor();
+        return;
+    }
+
+    if (!selectedNode) {
+        selectedNode = clickedNode;
+        drawEditor();
+    } else {
+        if (selectedNode.id !== clickedNode.id) {
+            addRoad(selectedNode, clickedNode);
+        }
+        selectedNode = null;
+        drawEditor();
+    }
+}
+
+function addRoad(node1, node2) {
+    const roadExists = roads.some(road =>
+        (road.from === node1.id && road.to === node2.id) ||
+        (road.from === node2.id && road.to === node1.id)
+    );
+
+    if (!roadExists) {
+        roads.push({ from: node1.id, to: node2.id });
+        // Update connections in nodes
+        nodes[node1.id].connections.push(node2.id);
+        nodes[node2.id].connections.push(node1.id);
+    }
+}
+
+function findNodeAt(x, y, tolerance = 15) {
+    for (const node of nodes) {
+        const dx = node.x - x;
+        const dy = node.y - y;
+        if (Math.sqrt(dx * dx + dy * dy) < tolerance) {
+            return node;
+        }
+    }
+    return null;
+}
+
+function drawEditor() {
+    two.clear();
+
+    // Draw roads
+    roads.forEach(road => {
+        const nodeFrom = nodes[road.from];
+        const nodeTo = nodes[road.to];
+        const line = two.makeLine(nodeFrom.x, nodeFrom.y, nodeTo.x, nodeTo.y);
+        line.stroke = '#7f8c8d';
+        line.linewidth = 8;
+    });
+
+    // Draw nodes
+    nodes.forEach(node => {
+        const circle = two.makeCircle(node.x, node.y, 10);
+        if (selectedNode && selectedNode.id === node.id) {
+            circle.fill = '#e67e22';
+        } else {
+            circle.fill = '#2c3e50';
+        }
+    });
+
+    two.update();
+}
+
+// --- SIMULATION LOGIC (from main.js) ---
+
 class Car {
-    constructor(x, y, direction, color = '#3498db', speed = 2) {
-        this.x = x;
-        this.y = y;
-        this.startX = x;
-        this.startY = y;
-        this.direction = direction;
-        this.speed = speed;
-        this.originalSpeed = speed;
-        this.isStopped = false;
-        this.color = color;
-        this.width = direction === 'down' || direction === 'up' ? 25 : 50;
-        this.height = direction === 'down' || direction === 'up' ? 50 : 25;
+    constructor(startNode) {
+        this.currentNode = startNode;
+        this.targetNode = this.findNextTarget();
+
+        this.x = this.currentNode.x;
+        this.y = this.currentNode.y;
+        this.speed = 2 + Math.random() * 1.5;
         this.id = Math.random().toString(36).substr(2, 9);
 
-        // Two.js representation
+        // Visual representation
+        this.width = 15;
+        this.height = 30;
         this.group = new Two.Group();
-
-        const body = two.makeRoundedRectangle(0, 0, this.width, this.height, 5);
-        body.fill = this.color;
+        const body = two.makeRoundedRectangle(0, 0, this.width, this.height, 4);
+        body.fill = Math.random() > 0.5 ? '#3498db' : '#e74c3c';
         body.stroke = '#2c3e50';
-        body.linewidth = 2;
-
+        body.linewidth = 1;
         this.group.add(body);
 
-        const windows = new Two.Group();
-        if (this.direction === 'down' || this.direction === 'up') {
-            const w1 = two.makeRectangle(0, -10, 16, 10);
-            const w2 = two.makeRectangle(0, 10, 16, 10);
-            windows.add(w1, w2);
-        } else {
-            const w1 = two.makeRectangle(-10, 0, 10, 16);
-            const w2 = two.makeRectangle(10, 0, 10, 16);
-            windows.add(w1, w2);
-        }
-
-        windows.fill = '#87ceeb';
-        windows.stroke = '#2c3e50';
-        windows.linewidth = 1;
-
-        this.group.add(windows);
         this.group.translation.set(this.x, this.y);
         two.add(this.group);
     }
-    
+
+    findNextTarget() {
+        const connections = this.currentNode.connections;
+        if (connections.length === 0) return null;
+
+        // Find a random connected node that is not the one we just came from
+        const lastNodeId = this.targetNode ? this.targetNode.id : -1;
+        let possibleTargets = connections.filter(id => id !== lastNodeId);
+        if (possibleTargets.length === 0) {
+            possibleTargets = connections; // If no other option, allow going back
+        }
+
+        const nextNodeId = possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
+        return nodes[nextNodeId];
+    }
+
     update() {
-        if (!isRunning) return;
+        if (!isRunning || !this.targetNode) return;
 
-        // Unified collision detection
-        let shouldStop = false;
-        for (const other of cars) {
-            if (this.id === other.id) continue;
+        const dx = this.targetNode.x - this.x;
+        const dy = this.targetNode.y - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
 
-            if (this.predictCollision(other)) {
-                // Right-of-way: vertical traffic has priority
-                const isVertical = this.direction === 'up' || this.direction === 'down';
-                const isOtherVertical = other.direction === 'up' || other.direction === 'down';
-
-                if (isVertical && !isOtherVertical) {
-                    // I have priority
-                    shouldStop = false;
-                } else if (!isVertical && isOtherVertical) {
-                    // Other has priority
-                    shouldStop = true;
-                } else {
-                    // Same direction, car in front has priority
-                    if ((this.direction === 'down' && this.y < other.y) ||
-                        (this.direction === 'up' && this.y > other.y) ||
-                        (this.direction === 'right' && this.x < other.x) ||
-                        (this.direction === 'left' && this.x > other.x)) {
-                        shouldStop = true;
-                    }
-                }
-                if (shouldStop) break;
-            }
+        if (dist < this.speed) {
+            // Arrived at target node
+            this.x = this.targetNode.x;
+            this.y = this.targetNode.y;
+            this.currentNode = this.targetNode;
+            this.targetNode = this.findNextTarget();
+            return;
         }
 
-        if (shouldStop) {
-            this.speed = 0;
-            this.isStopped = true;
-        } else {
-            this.speed = this.originalSpeed;
-            this.isStopped = false;
-        }
+        // Move towards target
+        const angle = Math.atan2(dy, dx);
+        this.x += Math.cos(angle) * this.speed;
+        this.y += Math.sin(angle) * this.speed;
 
-        if (this.isStopped) {
-            return; // Don't update position if stopped
-        }
-
-        switch (this.direction) {
-            case 'down':
-                this.y += this.speed;
-                if (this.y > two.height + 50) this.y = -50;
-                break;
-            case 'right':
-                this.x += this.speed;
-                if (this.x > two.width + 50) this.x = -50;
-                break;
-            case 'up':
-                this.y -= this.speed;
-                if (this.y < -50) this.y = two.height + 50;
-                break;
-            case 'left':
-                this.x -= this.speed;
-                if (this.x < -50) this.x = two.width + 50;
-                break;
-        }
         this.group.translation.set(this.x, this.y);
-    }
-
-    getBoundingBox(x = this.x, y = this.y) {
-        return {
-            left: x - this.width / 2,
-            right: x + this.width / 2,
-            top: y - this.height / 2,
-            bottom: y + this.height / 2
-        };
-    }
-
-    predictCollision(other) {
-        const nextX = this.x + (this.direction === 'right' ? this.speed : (this.direction === 'left' ? -this.speed : 0));
-        const nextY = this.y + (this.direction === 'down' ? this.speed : (this.direction === 'up' ? -this.speed : 0));
-
-        const myNextBox = this.getBoundingBox(nextX, nextY);
-        const otherBox = other.getBoundingBox();
-
-        // Add a small buffer
-        const buffer = 5;
-
-        return (
-            myNextBox.left < otherBox.right + buffer &&
-            myNextBox.right > otherBox.left - buffer &&
-            myNextBox.top < otherBox.bottom + buffer &&
-            myNextBox.bottom > otherBox.top - buffer
-        );
+        this.group.rotation = angle + Math.PI / 2; // Align car with direction of travel
     }
     
-    reset() {
-        this.x = this.startX;
-        this.y = this.startY;
-        this.group.translation.set(this.x, this.y);
+    destroy() {
+        two.remove(this.group);
     }
 }
 
-// Road drawing functions
-function drawRoads() {
-    // Roads
-    const roads = new Two.Group();
-    const verticalRoad = two.makeRectangle(400, 300, 120, 600);
-    verticalRoad.fill = '#555';
-    verticalRoad.stroke = '#333';
-    verticalRoad.linewidth = 2;
-    
-    const horizontalRoad = two.makeRectangle(400, 300, 800, 120);
-    horizontalRoad.fill = '#555';
-    horizontalRoad.stroke = '#333';
-    horizontalRoad.linewidth = 2;
-
-    roads.add(verticalRoad, horizontalRoad);
-    
-    // Lane dividers
-    const dividers = new Two.Group();
-    const v1 = two.makeLine(400, 0, 400, 240);
-    const v2 = two.makeLine(400, 360, 400, 600);
-    const h1 = two.makeLine(0, 300, 340, 300);
-    const h2 = two.makeLine(460, 300, 800, 300);
-    
-    dividers.add(v1, v2, h1, h2);
-    dividers.stroke = '#fff';
-    dividers.linewidth = 3;
-    dividers.dashes = [15, 15];
-    
-    // Intersection
-    const intersection = two.makeRectangle(400, 300, 120, 120);
-    intersection.fill = '#666';
-    intersection.stroke = '#333';
-    intersection.linewidth = 2;
-    
-    two.add(roads, dividers, intersection);
-}
-
-// Initialize cars
 function initCars() {
-    cars.forEach(car => car.group.remove());
+    cars.forEach(car => car.destroy());
     cars = [];
     
-    // 4 cars going down (blue) - left lane
-    for (let i = 0; i < 4; i++) {
-        cars.push(new Car(
-            370,
-            -100 - (i * 100),
-            'down',
-            '#3498db',
-            2 + Math.random() * 1.5
-        ));
-    }
-    
-    // 4 cars going right (red) - top lane  
-    for (let i = t = 0; i < 4; i++) {
-        cars.push(new Car(
-            -100 - (i * 100),
-            270,
-            'right',
-            '#e74c3c',
-            2 + Math.random() * 1.5
-        ));
+    if (nodes.length < 2) return;
+
+    // Add 5 cars at random starting nodes
+    for (let i = 0; i < 5; i++) {
+        const startNode = nodes[Math.floor(Math.random() * nodes.length)];
+        if (startNode.connections.length > 0) {
+            cars.push(new Car(startNode));
+        }
     }
 }
 
-// Animation loop
+// --- ANIMATION LOOP ---
 let lastTime = 0;
 two.bind('update', function(frameCount, timeDelta) {
-    if (!timeDelta) return;
-    
-    cars.forEach(car => {
-        car.update();
-    });
+    if (currentMode === 'simulation') {
+        if (!timeDelta) return;
 
-    if (frameCount % 10 === 0) {
-        fps = Math.round(1000 / timeDelta);
+        cars.forEach(car => car.update());
+
+        if (frameCount % 10 === 0) {
+            fps = Math.round(1000 / timeDelta);
+        }
     }
     updateStats();
 });
 
-// Control functions
+// --- UI & MODE SWITCHING ---
+startSimBtn.addEventListener('click', () => {
+    if (nodes.length < 2 || roads.length < 1) {
+        alert("Please create at least two nodes and one road before starting the simulation.");
+        return;
+    }
+    switchToSimulationMode();
+});
+
+function switchToSimulationMode() {
+    currentMode = 'simulation';
+    editorTools.style.display = 'none';
+    startSimContainer.style.display = 'none';
+    simControls.style.display = 'block';
+    modeStatus.textContent = 'Simulation';
+
+    initCars();
+    startSimulation(); // Autostart
+}
+
+function switchToEditorMode() {
+    currentMode = 'editor';
+    editorTools.style.display = 'block';
+    startSimContainer.style.display = 'block';
+    simControls.style.display = 'none';
+    modeStatus.textContent = 'Editor';
+
+    pauseSimulation();
+    cars.forEach(c => c.destroy());
+    cars = [];
+
+    setActiveTool('place-node');
+    drawEditor(); // Redraw editor layout
+}
+
+// --- SIMULATION CONTROLS ---
 function startSimulation() {
     if (!isRunning) {
         isRunning = true;
         two.play();
-        console.log('Simulation started');
     }
 }
 
 function pauseSimulation() {
     isRunning = false;
     two.pause();
-    console.log('Simulation paused');
 }
 
 function resetSimulation() {
-    isRunning = false;
-    two.pause();
-    initCars();
-    console.log('Simulation reset');
+    // In the new flow, reset takes you back to the editor
+    switchToEditorMode();
 }
 
 function addMoreCars() {
-    cars.push(new Car(370, -50, 'down', '#3498db', 2 + Math.random() * 1.5));
-    cars.push(new Car(-50, 270, 'right', '#e74c3c', 2 + Math.random() * 1.5));
-    console.log(`Added more cars. Total: ${cars.length}`);
+    if (currentMode !== 'simulation' || nodes.length < 1) return;
+
+    const startNode = nodes[Math.floor(Math.random() * nodes.length)];
+    if (startNode.connections.length > 0) {
+        cars.push(new Car(startNode));
+    }
 }
 
 function updateStats() {
     const statsEl = document.getElementById('stats');
-    statsEl.textContent = `Cars: ${cars.length} | Running: ${isRunning ? 'Yes' : 'No'} | FPS: ${fps}`;
+    statsEl.textContent = `Cars: ${cars.length} | Running: ${isRunning ? 'Yes' : 'No'} | FPS: ${fps} | Nodes: ${nodes.length} | Roads: ${roads.length}`;
 }
 
-// Initialize and start
-drawRoads();
-initCars();
+// --- INITIALIZATION ---
+function init() {
+    switchToEditorMode();
+    two.play(); // Start the animation loop
+}
 
-// Auto start after 1 second
-setTimeout(() => {
-    startSimulation();
-}, 1000);
-
-console.log('Traffic simulator loaded successfully!');
+init();
