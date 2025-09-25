@@ -3,49 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traffic Simulator - Canvas</title>
+    <title>Traffic Simulator</title>
     <link rel="stylesheet" href="main.css">
 </head>
 <body>
     <div class="container">
-        <h1>Traffic Simulator - Cross Road</h1>
-        <div class="stage-controls">
-            <label for="stage-select">Switch Version:</label>
-            <select id="stage-select" onchange="switchStage()">
-                <option value="index.html" selected>Latest</option>
-                <option value="nodes.html">Nodes</option>
-                <option value="v1-barebones.html">v1-barebones</option>
-                <option value="road-editor.html">Road Editor</option>
-            </select>
+        <h1>Traffic Simulator</h1>
+
+        <div id="editor-tools" class="toolbox">
+            <button id="place-node-btn">Place Node</button>
+            <button id="create-road-btn">Create Road</button>
         </div>
+
         <canvas id="traffic-canvas" width="800" height="600"></canvas>
         
-        <div class="controls">
+        <div id="simulation-controls" class="controls" style="display: none;">
             <button onclick="startSimulation()">Start Simulation</button>
             <button onclick="pauseSimulation()">Pause</button>
             <button onclick="resetSimulation()">Reset</button>
             <button onclick="addMoreCars()">Add More Cars</button>
         </div>
+
+        <div id="start-simulation-container" class="controls">
+             <button id="start-simulation-btn">Start Simulation</button>
+        </div>
         
         <div class="stats" id="stats">
-            Cars: 8 | Running: No | FPS: 0
+            Cars: 0 | Running: No | FPS: 0
         </div>
         
         <div class="info">
-            <p><strong>Simulation:</strong> Cross road with vertical and horizontal traffic</p>
-            <p><strong>Blue cars:</strong> Moving top to bottom | <strong>Red cars:</strong> Moving left to right</p>
+            <p><strong>Mode:</strong> <span id="mode-status">Editor</span></p>
+            <p>Use the tools to draw a road network. Then, start the simulation.</p>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/two.js/0.8.10/two.min.js"></script>
     <script src="main.js"></script>
-    <script>
-     function switchStage() {
-        const val = document.getElementById('stage-select').value;
-        if (window.location.pathname.indexOf(val) === -1) {
-            window.location.href = val;
-        }
-    }
-    </script>
 </body>
 </html>
