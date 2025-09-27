@@ -29,6 +29,7 @@ const createRoadBtn = document.getElementById('create-road-btn');
 const createRouteBtn = document.getElementById('create-route-btn');
 const endRouteBtn = document.getElementById('end-route-btn');
 const modeStatus = document.getElementById('mode-status');
+const debugCheckbox = document.getElementById('debug-checkbox');
 
 // --- EDITOR LOGIC (from road-editor.js) ---
 function setActiveTool(tool) {
@@ -226,16 +227,25 @@ class Car {
         this.y = this.currentNode.y;
         this.speed = 2 + Math.random() * 1.5;
         this.id = Math.random().toString(36).substr(2, 9);
+        this.originalColor = Math.random() > 0.5 ? '#3498db' : '#e74c3c';
 
         // Visual representation
         this.width = 15;
         this.height = 30;
+        this.safeDistance = 50; // The length of the sensor line
         this.group = new Two.Group();
         const body = two.makeRoundedRectangle(0, 0, this.width, this.height, 4);
-        body.fill = Math.random() > 0.5 ? '#3498db' : '#e74c3c';
+        body.fill = this.originalColor;
         body.stroke = '#2c3e50';
         body.linewidth = 1;
         this.group.add(body);
+
+        // Add the safe distance line for debugging
+        this.safeDistanceLine = two.makeLine(0, -this.height / 2, 0, -this.height / 2 - this.safeDistance);
+        this.safeDistanceLine.stroke = 'rgba(0, 255, 0, 0.7)';
+        this.safeDistanceLine.linewidth = 2;
+        this.safeDistanceLine.visible = debugCheckbox.checked;
+        this.group.add(this.safeDistanceLine);
 
         this.group.translation.set(this.x, this.y);
         two.add(this.group);
@@ -256,8 +266,53 @@ class Car {
         return nodes[nextNodeId];
     }
 
+    checkCollision(otherCars) {
+        if (!this.targetNode) return false;
+
+        // Calculate sensor position
+        const angle = Math.atan2(this.targetNode.y - this.y, this.targetNode.x - this.x);
+        const sensorDistance = this.height / 2 + this.safeDistance;
+        const sensorX = this.x + Math.cos(angle) * sensorDistance;
+        const sensorY = this.y + Math.sin(angle) * sensorDistance;
+
+        for (const other of otherCars) {
+            if (other.id === this.id) continue;
+
+            // --- Point-in-rotated-rectangle check ---
+            // Transform the sensor point into the other car's local coordinate system.
+            const localX = sensorX - other.x;
+            const localY = sensorY - other.y;
+
+            const otherVisualAngle = other.group.rotation;
+            const cos = Math.cos(-otherVisualAngle);
+            const sin = Math.sin(-otherVisualAngle);
+
+            const rotatedX = localX * cos - localY * sin;
+            const rotatedY = localX * sin + localY * cos;
+
+            // Check if the rotated point is within the other car's bounding box.
+            if (Math.abs(rotatedX) < other.width / 2 && Math.abs(rotatedY) < other.height / 2) {
+                return true; // Collision detected
+            }
+        }
+        return false;
+    }
+
     update() {
         if (!isRunning || !this.targetNode) return;
+
+        const isColliding = this.checkCollision(cars);
+
+        const body = this.group.children[0];
+        if (isColliding) {
+            body.fill = '#f1c40f'; // Yellow for braking
+        } else {
+            body.fill = this.originalColor;
+        }
+
+        if (isColliding) {
+            return; // Stop
+        }
 
         const dx = this.targetNode.x - this.x;
         const dy = this.targetNode.y - this.y;
@@ -317,6 +372,14 @@ two.bind('update', function(frameCount, timeDelta) {
 });
 
 // --- UI & MODE SWITCHING ---
+debugCheckbox.addEventListener('change', () => {
+    cars.forEach(car => {
+        if (car.safeDistanceLine) {
+            car.safeDistanceLine.visible = debugCheckbox.checked;
+        }
+    });
+});
+
 startSimBtn.addEventListener('click', () => {
     if (nodes.length < 2 || roads.length < 1) {
         alert("Please create at least two nodes and one road before starting the simulation.");
