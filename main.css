@@ -94,3 +94,13 @@ button:hover {
     color: #3498db;
     font-weight: bold;
 }
+
+.contribution-info {
+    margin-top: 20px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    text-align: center;
+    font-size: 0.9em;
+    border-radius: 5px;
+}
