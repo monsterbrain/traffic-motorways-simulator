@@ -12,6 +12,9 @@ let isRunning = false;
 let cars = [];
 let nodes = [];
 let roads = [];
+let routes = [];
+let currentRoute = [];
+const routeColors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22'];
 let selectedNode = null;
 let currentTool = 'place-node';
 let fps = 0;
@@ -23,6 +26,8 @@ const startSimContainer = document.getElementById('start-simulation-container');
 const startSimBtn = document.getElementById('start-simulation-btn');
 const placeNodeBtn = document.getElementById('place-node-btn');
 const createRoadBtn = document.getElementById('create-road-btn');
+const createRouteBtn = document.getElementById('create-route-btn');
+const endRouteBtn = document.getElementById('end-route-btn');
 const modeStatus = document.getElementById('mode-status');
 
 // --- EDITOR LOGIC (from road-editor.js) ---
@@ -30,10 +35,35 @@ function setActiveTool(tool) {
     currentTool = tool;
     placeNodeBtn.classList.toggle('active', tool === 'place-node');
     createRoadBtn.classList.toggle('active', tool === 'create-road');
+    createRouteBtn.classList.toggle('active', tool === 'create-route');
+
+    // Show/hide End Route button
+    endRouteBtn.style.display = tool === 'create-route' ? 'inline-block' : 'none';
+
+    // If switching away from route creation, clear the current route
+    if (tool !== 'create-route' && currentRoute.length > 0) {
+        currentRoute = [];
+        drawEditor();
+    }
 }
 
 placeNodeBtn.addEventListener('click', () => setActiveTool('place-node'));
 createRoadBtn.addEventListener('click', () => setActiveTool('create-road'));
+createRouteBtn.addEventListener('click', () => {
+    setActiveTool('create-route');
+    currentRoute = []; // Start a new route
+    drawEditor();
+});
+endRouteBtn.addEventListener('click', () => {
+    if (currentRoute.length > 1) {
+        routes.push([...currentRoute]); // Save a copy of the route
+    }
+    currentRoute = []; // Reset for the next one
+    // Optionally, switch back to a default tool
+    // setActiveTool('place-node');
+    drawEditor();
+});
+
 
 canvas.addEventListener('click', (e) => {
     if (currentMode !== 'editor') return;
@@ -46,8 +76,30 @@ canvas.addEventListener('click', (e) => {
         addNode(x, y);
     } else if (currentTool === 'create-road') {
         handleRoadCreation(x, y);
+    } else if (currentTool === 'create-route') {
+        handleRouteCreation(x, y);
     }
 });
+
+function handleRouteCreation(x, y) {
+    const clickedNode = findNodeAt(x, y);
+    if (!clickedNode) return;
+
+    if (currentRoute.length === 0) {
+        // Start a new route
+        currentRoute.push(clickedNode.id);
+    } else {
+        const lastNodeId = currentRoute[currentRoute.length - 1];
+        const lastNode = nodes[lastNodeId];
+
+        // Check if the clicked node is connected to the last node in the route
+        // And if it's not already in the current route
+        if (lastNode.connections.includes(clickedNode.id) && !currentRoute.includes(clickedNode.id)) {
+            currentRoute.push(clickedNode.id);
+        }
+    }
+    drawEditor();
+}
 
 function addNode(x, y) {
     const newNode = { x, y, id: nodes.length, connections: [] };
@@ -112,13 +164,51 @@ function drawEditor() {
         line.linewidth = 8;
     });
 
+    // Draw existing routes
+    routes.forEach((route, index) => {
+        const color = routeColors[index % routeColors.length];
+        for (let i = 0; i < route.length - 1; i++) {
+            const nodeFrom = nodes[route[i]];
+            const nodeTo = nodes[route[i+1]];
+            const line = two.makeLine(nodeFrom.x, nodeFrom.y, nodeTo.x, nodeTo.y);
+            line.stroke = color;
+            line.linewidth = 5;
+            line.opacity = 0.7;
+        }
+    });
+
+    // Draw current route being created
+    if (currentTool === 'create-route' && currentRoute.length > 0) {
+        const color = routeColors[routes.length % routeColors.length];
+        for (let i = 0; i < currentRoute.length - 1; i++) {
+            const nodeFrom = nodes[currentRoute[i]];
+            const nodeTo = nodes[currentRoute[i+1]];
+            const line = two.makeLine(nodeFrom.x, nodeFrom.y, nodeTo.x, nodeTo.y);
+            line.stroke = color;
+            line.linewidth = 6;
+        }
+    }
+
     // Draw nodes
+    const lastNodeInRoute = currentRoute.length > 0 ? nodes[currentRoute[currentRoute.length - 1]] : null;
+
     nodes.forEach(node => {
         const circle = two.makeCircle(node.x, node.y, 10);
-        if (selectedNode && selectedNode.id === node.id) {
-            circle.fill = '#e67e22';
+
+        if (currentTool === 'create-route') {
+            if (currentRoute.includes(node.id)) {
+                circle.fill = routeColors[routes.length % routeColors.length]; // Color for nodes in current route
+            } else if (lastNodeInRoute && lastNodeInRoute.connections.includes(node.id)) {
+                circle.fill = '#2ecc71'; // Green for selectable next nodes
+            } else if (lastNodeInRoute) {
+                circle.fill = '#e74c3c'; // Red for non-selectable nodes
+            } else {
+                 circle.fill = '#2c3e50'; // Default color if route hasn't started
+            }
+        } else if (selectedNode && selectedNode.id === node.id) {
+            circle.fill = '#e67e22'; // Orange for selected node in road creation
         } else {
-            circle.fill = '#2c3e50';
+            circle.fill = '#2c3e50'; // Default node color
         }
     });
 
