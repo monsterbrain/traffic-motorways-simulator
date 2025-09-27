@@ -1,5 +1,11 @@
 # History
 
+## 2025-09-27
+
+- Implemented a new collision detection system using a "safe distance" line.
+- Cars now stop when another vehicle is within their safe distance and resume when the path is clear.
+- Added a "Debug Info" checkbox to visualize the safe distance lines for debugging.
+
 ## 2025-09-17
 
 - Added collision check for cars.
