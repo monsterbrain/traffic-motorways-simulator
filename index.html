@@ -13,8 +13,17 @@
         <div id="editor-tools" class="toolbox">
             <button id="place-node-btn">Place Node</button>
             <button id="create-road-btn">Create Road</button>
+            <button id="place-spawner-btn">Place Spawner</button>
             <button id="create-route-btn">Create Route</button>
             <button id="end-route-btn" style="display: none;">End Route</button>
+        </div>
+
+        <div id="spawner-settings" class="toolbox" style="display: none;">
+            <h3>Spawner Settings</h3>
+            <label for="route-select">Route:</label>
+            <select id="route-select">
+                <option value="-1">No Route</option>
+            </select>
         </div>
 
         <canvas id="traffic-canvas" width="800" height="600"></canvas>
