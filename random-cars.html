@@ -13,21 +13,12 @@
         <div id="editor-tools" class="toolbox">
             <button id="place-node-btn">Place Node</button>
             <button id="create-road-btn">Create Road</button>
-            <button id="place-spawner-btn">Place Spawner</button>
             <button id="create-route-btn">Create Route</button>
             <button id="end-route-btn" style="display: none;">End Route</button>
         </div>
 
-        <div id="spawner-settings" class="toolbox" style="display: none;">
-            <h3>Spawner Settings</h3>
-            <label for="route-select">Route:</label>
-            <select id="route-select">
-                <option value="-1">No Route</option>
-            </select>
-        </div>
-
         <canvas id="traffic-canvas" width="800" height="600"></canvas>
-        
+
         <div id="simulation-controls" class="controls" style="display: none;">
             <button onclick="startSimulation()">Start Simulation</button>
             <button onclick="pauseSimulation()">Pause</button>
@@ -38,11 +29,11 @@
         <div id="start-simulation-container" class="controls">
              <button id="start-simulation-btn">Start Simulation</button>
         </div>
-        
+
         <div class="stats" id="stats">
             Cars: 0 | Running: No | FPS: 0
         </div>
-        
+
         <div class="info">
             <p><strong>Mode:</strong> <span id="mode-status">Editor</span></p>
             <p>Use the tools to draw a road network. Then, start the simulation.</p>
@@ -60,6 +51,6 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/two.js/0.8.10/two.min.js"></script>
-    <script src="main.js"></script>
+    <script src="random-cars.js"></script>
 </body>
 </html>

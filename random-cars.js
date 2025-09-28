@@ -13,11 +13,9 @@ let cars = [];
 let nodes = [];
 let roads = [];
 let routes = [];
-let spawners = [];
 let currentRoute = [];
 const routeColors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22'];
 let selectedNode = null;
-let selectedSpawner = null;
 let currentTool = 'place-node';
 let fps = 0;
 
@@ -28,11 +26,8 @@ const startSimContainer = document.getElementById('start-simulation-container');
 const startSimBtn = document.getElementById('start-simulation-btn');
 const placeNodeBtn = document.getElementById('place-node-btn');
 const createRoadBtn = document.getElementById('create-road-btn');
-const placeSpawnerBtn = document.getElementById('place-spawner-btn');
 const createRouteBtn = document.getElementById('create-route-btn');
 const endRouteBtn = document.getElementById('end-route-btn');
-const spawnerSettings = document.getElementById('spawner-settings');
-const routeSelect = document.getElementById('route-select');
 const modeStatus = document.getElementById('mode-status');
 const debugCheckbox = document.getElementById('debug-checkbox');
 
@@ -42,14 +37,9 @@ function setActiveTool(tool) {
     placeNodeBtn.classList.toggle('active', tool === 'place-node');
     createRoadBtn.classList.toggle('active', tool === 'create-road');
     createRouteBtn.classList.toggle('active', tool === 'create-route');
-    placeSpawnerBtn.classList.toggle('active', tool === 'place-spawner');
-
 
     // Show/hide End Route button
     endRouteBtn.style.display = tool === 'create-route' ? 'inline-block' : 'none';
-    spawnerSettings.style.display = 'none';
-    selectedSpawner = null;
-
 
     // If switching away from route creation, clear the current route
     if (tool !== 'create-route' && currentRoute.length > 0) {
@@ -60,7 +50,6 @@ function setActiveTool(tool) {
 
 placeNodeBtn.addEventListener('click', () => setActiveTool('place-node'));
 createRoadBtn.addEventListener('click', () => setActiveTool('create-road'));
-placeSpawnerBtn.addEventListener('click', () => setActiveTool('place-spawner'));
 createRouteBtn.addEventListener('click', () => {
     setActiveTool('create-route');
     currentRoute = []; // Start a new route
@@ -73,14 +62,7 @@ endRouteBtn.addEventListener('click', () => {
     currentRoute = []; // Reset for the next one
     // Optionally, switch back to a default tool
     // setActiveTool('place-node');
-    updateSpawnerSettings(); // Update dropdown in case new routes were added
     drawEditor();
-});
-
-routeSelect.addEventListener('change', () => {
-    if (selectedSpawner) {
-        selectedSpawner.routeIndex = parseInt(routeSelect.value, 10);
-    }
 });
 
 
@@ -97,53 +79,8 @@ canvas.addEventListener('click', (e) => {
         handleRoadCreation(x, y);
     } else if (currentTool === 'create-route') {
         handleRouteCreation(x, y);
-    } else if (currentTool === 'place-spawner') {
-        handleSpawnerCreation(x, y);
     }
 });
-
-function handleSpawnerCreation(x, y) {
-    const clickedNode = findNodeAt(x, y);
-    if (clickedNode) {
-        // Check if a spawner already exists at this node
-        const existingSpawner = spawners.find(s => s.nodeId === clickedNode.id);
-        if (!existingSpawner) {
-            spawners.push({
-                nodeId: clickedNode.id,
-                routeIndex: -1, // -1 means no route assigned
-                interval: 5000, // 5 seconds
-                timer: 5000
-            });
-        }
-        // Even if one exists, we can select it
-        selectedSpawner = spawners.find(s => s.nodeId === clickedNode.id);
-        updateSpawnerSettings();
-    } else {
-        selectedSpawner = null;
-    }
-    updateSpawnerSettings();
-    drawEditor();
-}
-
-function updateSpawnerSettings() {
-    if (selectedSpawner) {
-        spawnerSettings.style.display = 'block';
-        routeSelect.value = selectedSpawner.routeIndex;
-
-        // Populate route select dropdown
-        routeSelect.innerHTML = '<option value="-1">No Route</option>'; // Clear existing
-        routes.forEach((route, index) => {
-            const option = document.createElement('option');
-            option.value = index;
-            option.textContent = `Route ${index + 1}`;
-            routeSelect.appendChild(option);
-        });
-        routeSelect.value = selectedSpawner.routeIndex;
-
-    } else {
-        spawnerSettings.style.display = 'none';
-    }
-}
 
 function handleRouteCreation(x, y) {
     const clickedNode = findNodeAt(x, y);
@@ -253,26 +190,6 @@ function drawEditor() {
         }
     }
 
-    // Draw spawners
-    spawners.forEach(spawner => {
-        const node = nodes[spawner.nodeId];
-        if (!node) return;
-
-        const size = 12; // size of the diamond
-        const diamond = new Two.Path([
-            new Two.Anchor(node.x, node.y - size),
-            new Two.Anchor(node.x + size, node.y),
-            new Two.Anchor(node.x, node.y + size),
-            new Two.Anchor(node.x - size, node.y)
-        ], true, false);
-
-        const isSelected = selectedSpawner && selectedSpawner.nodeId === spawner.nodeId;
-        diamond.fill = isSelected ? '#f39c12' : '#9b59b6'; // Purple for spawner, orange for selected
-        diamond.stroke = '#2c3e50';
-        diamond.linewidth = 2;
-        two.add(diamond);
-    });
-
     // Draw nodes
     const lastNodeInRoute = currentRoute.length > 0 ? nodes[currentRoute[currentRoute.length - 1]] : null;
 
@@ -302,11 +219,7 @@ function drawEditor() {
 // --- SIMULATION LOGIC (from main.js) ---
 
 class Car {
-    constructor(startNode, route = null) {
-        this.route = route;
-        this.routeIndex = 0;
-        this.isFinished = false;
-
+    constructor(startNode) {
         this.currentNode = startNode;
         this.targetNode = this.findNextTarget();
 
@@ -314,8 +227,7 @@ class Car {
         this.y = this.currentNode.y;
         this.speed = 2 + Math.random() * 1.5;
         this.id = Math.random().toString(36).substr(2, 9);
-        this.originalColor = this.route ? routeColors[routes.indexOf(this.route) % routeColors.length] : '#3498db';
-
+        this.originalColor = Math.random() > 0.5 ? '#3498db' : '#e74c3c';
 
         // Visual representation
         this.width = 15;
@@ -340,20 +252,10 @@ class Car {
     }
 
     findNextTarget() {
-        if (this.route) {
-            this.routeIndex++;
-            if (this.routeIndex < this.route.length) {
-                const nextNodeId = this.route[this.routeIndex];
-                return nodes[nextNodeId];
-            } else {
-                return null; // End of route
-            }
-        }
-
-        // Fallback for cars without a route
         const connections = this.currentNode.connections;
         if (connections.length === 0) return null;
 
+        // Find a random connected node that is not the one we just came from
         const lastNodeId = this.targetNode ? this.targetNode.id : -1;
         let possibleTargets = connections.filter(id => id !== lastNodeId);
         if (possibleTargets.length === 0) {
@@ -422,12 +324,6 @@ class Car {
             this.y = this.targetNode.y;
             this.currentNode = this.targetNode;
             this.targetNode = this.findNextTarget();
-
-            if (!this.targetNode) {
-                // End of the route, prepare for removal
-                this.destroy();
-                this.isFinished = true;
-            }
             return;
         }
 
@@ -439,7 +335,7 @@ class Car {
         this.group.translation.set(this.x, this.y);
         this.group.rotation = angle + Math.PI / 2; // Align car with direction of travel
     }
-    
+
     destroy() {
         two.remove(this.group);
     }
@@ -448,75 +344,29 @@ class Car {
 function initCars() {
     cars.forEach(car => car.destroy());
     cars = [];
-    
-    // Spawners will now handle car creation
-    // if (nodes.length < 2) return;
 
-    // // Add 5 cars at random starting nodes
-    // for (let i = 0; i < 5; i++) {
-    //     const startNode = nodes[Math.floor(Math.random() * nodes.length)];
-    //     if (startNode.connections.length > 0) {
-    //         cars.push(new Car(startNode));
-    //     }
-    // }
+    if (nodes.length < 2) return;
+
+    // Add 5 cars at random starting nodes
+    for (let i = 0; i < 5; i++) {
+        const startNode = nodes[Math.floor(Math.random() * nodes.length)];
+        if (startNode.connections.length > 0) {
+            cars.push(new Car(startNode));
+        }
+    }
 }
 
 // --- ANIMATION LOOP ---
-let spawnerAnimationsGroup = new Two.Group();
-two.add(spawnerAnimationsGroup);
-
+let lastTime = 0;
 two.bind('update', function(frameCount, timeDelta) {
-    if (!isRunning || !timeDelta) return;
-
     if (currentMode === 'simulation') {
-        // Update Spawners
-        spawnerAnimationsGroup.children.forEach(child => child.remove());
-        spawnerAnimationsGroup.children = [];
+        if (!timeDelta) return;
 
-
-        spawners.forEach(spawner => {
-            spawner.timer -= timeDelta;
-
-            if (spawner.timer <= 0) {
-                spawner.timer = spawner.interval; // Reset timer
-
-                const route = routes[spawner.routeIndex];
-                if (route) {
-                    const startNode = nodes[spawner.nodeId];
-                    cars.push(new Car(startNode, route));
-                }
-            }
-
-            // Draw countdown animation
-            const node = nodes[spawner.nodeId];
-            if (node) {
-                const progress = 1 - (spawner.timer / spawner.interval);
-                const radius = 15;
-                const startAngle = 0;
-                const endAngle = progress * Math.PI * 2;
-
-                if (endAngle > 0.01) { // Avoid drawing tiny arcs
-                    const arc = new Two.ArcSegment(node.x, node.y, radius, radius, startAngle, endAngle);
-                    arc.noFill().stroke = 'rgba(255, 255, 255, 0.8)';
-                    arc.linewidth = 3;
-                    spawnerAnimationsGroup.add(arc);
-                }
-            }
-        });
-
-        // Update Cars
         cars.forEach(car => car.update());
 
-        // Remove finished cars
-        const activeCars = cars.filter(car => !car.isFinished);
-        if (activeCars.length !== cars.length) {
-            cars = activeCars;
+        if (frameCount % 10 === 0) {
+            fps = Math.round(1000 / timeDelta);
         }
-    }
-
-    // Update stats and FPS
-    if (frameCount % 10 === 0) {
-        fps = Math.round(1000 / timeDelta);
     }
     updateStats();
 });
@@ -545,11 +395,6 @@ function switchToSimulationMode() {
     simControls.style.display = 'block';
     modeStatus.textContent = 'Simulation';
 
-    // Reset spawner timers
-    spawners.forEach(spawner => {
-        spawner.timer = spawner.interval;
-    });
-
     initCars();
     startSimulation(); // Autostart
 }
@@ -564,10 +409,6 @@ function switchToEditorMode() {
     pauseSimulation();
     cars.forEach(c => c.destroy());
     cars = [];
-
-    // Clear any lingering spawner animations
-    spawnerAnimationsGroup.children.forEach(child => child.remove());
-    spawnerAnimationsGroup.children = [];
 
     setActiveTool('place-node');
     drawEditor(); // Redraw editor layout
