@@ -17,7 +17,6 @@ let spawners = [];
 let currentRoute = [];
 const routeColors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22'];
 let selectedNode = null;
-let selectedSpawner = null;
 let currentTool = 'place-node';
 let fps = 0;
 
@@ -47,7 +46,15 @@ function setActiveTool(tool) {
 
     // Show/hide End Route button
     endRouteBtn.style.display = tool === 'create-route' ? 'inline-block' : 'none';
-    spawnerSettings.style.display = 'none';
+
+    // Manage spawner settings visibility
+    if (tool === 'place-spawner') {
+        // This tool should only be activated if routes exist (checked in event listener)
+        updateSpawnerSettings(true); // We are preparing to place a new spawner
+        spawnerSettings.style.display = 'block';
+    } else {
+        spawnerSettings.style.display = 'none';
+    }
     selectedSpawner = null;
 
 
@@ -60,7 +67,13 @@ function setActiveTool(tool) {
 
 placeNodeBtn.addEventListener('click', () => setActiveTool('place-node'));
 createRoadBtn.addEventListener('click', () => setActiveTool('create-road'));
-placeSpawnerBtn.addEventListener('click', () => setActiveTool('place-spawner'));
+placeSpawnerBtn.addEventListener('click', () => {
+    if (routes.length === 0) {
+        alert("No routes available. Please create a route first.");
+        return;
+    }
+    setActiveTool('place-spawner');
+});
 createRouteBtn.addEventListener('click', () => {
     setActiveTool('create-route');
     currentRoute = []; // Start a new route
@@ -78,9 +91,10 @@ endRouteBtn.addEventListener('click', () => {
 });
 
 routeSelect.addEventListener('change', () => {
-    if (selectedSpawner) {
-        selectedSpawner.routeIndex = parseInt(routeSelect.value, 10);
-    }
+    // This listener is now primarily for when the user changes the dropdown
+    // while the 'place-spawner' tool is active, before clicking on the canvas.
+    // The actual assignment happens in handleSpawnerCreation.
+    // No action is needed here anymore for existing spawners as they are not selectable.
 });
 
 
@@ -103,43 +117,46 @@ canvas.addEventListener('click', (e) => {
 });
 
 function handleSpawnerCreation(x, y) {
-    const clickedNode = findNodeAt(x, y);
-    if (clickedNode) {
-        // Check if a spawner already exists at this node
-        const existingSpawner = spawners.find(s => s.nodeId === clickedNode.id);
-        if (!existingSpawner) {
-            spawners.push({
-                nodeId: clickedNode.id,
-                routeIndex: -1, // -1 means no route assigned
-                interval: 5000, // 5 seconds
-                timer: 5000
-            });
-        }
-        // Even if one exists, we can select it
-        selectedSpawner = spawners.find(s => s.nodeId === clickedNode.id);
-        updateSpawnerSettings();
-    } else {
-        selectedSpawner = null;
+    const selectedRouteIndex = parseInt(routeSelect.value, 10);
+
+    if (selectedRouteIndex < 0 || !routes[selectedRouteIndex]) {
+        alert("Please select a valid route from the dropdown.");
+        return;
     }
-    updateSpawnerSettings();
+
+    spawners.push({
+        x: x,
+        y: y,
+        id: spawners.length, // Use length for a simple unique ID
+        routeIndex: selectedRouteIndex,
+        interval: 5000, // 5 seconds
+        timer: 5000
+    });
+
     drawEditor();
 }
 
-function updateSpawnerSettings() {
-    if (selectedSpawner) {
-        spawnerSettings.style.display = 'block';
-        routeSelect.value = selectedSpawner.routeIndex;
+function updateSpawnerSettings(isPlacingNew) {
+    spawnerSettings.style.display = 'block';
 
-        // Populate route select dropdown
-        routeSelect.innerHTML = '<option value="-1">No Route</option>'; // Clear existing
+    // Populate route select dropdown
+    routeSelect.innerHTML = ''; // Clear existing
+    if (routes.length === 0) {
+        routeSelect.innerHTML = '<option value="-1">No routes defined</option>';
+    } else {
         routes.forEach((route, index) => {
             const option = document.createElement('option');
             option.value = index;
             option.textContent = `Route ${index + 1}`;
             routeSelect.appendChild(option);
         });
-        routeSelect.value = selectedSpawner.routeIndex;
+    }
 
+
+    if (isPlacingNew) {
+        routeSelect.value = "0"; // Default to the first route when placing a new spawner
+    } else if (selectedSpawner) {
+        routeSelect.value = selectedSpawner.routeIndex;
     } else {
         spawnerSettings.style.display = 'none';
     }
@@ -255,22 +272,31 @@ function drawEditor() {
 
     // Draw spawners
     spawners.forEach(spawner => {
-        const node = nodes[spawner.nodeId];
-        if (!node) return;
-
-        const size = 12; // size of the diamond
+        // Draw the spawner icon (diamond)
+        const size = 12;
         const diamond = new Two.Path([
-            new Two.Anchor(node.x, node.y - size),
-            new Two.Anchor(node.x + size, node.y),
-            new Two.Anchor(node.x, node.y + size),
-            new Two.Anchor(node.x - size, node.y)
+            new Two.Anchor(spawner.x, spawner.y - size),
+            new Two.Anchor(spawner.x + size, spawner.y),
+            new Two.Anchor(spawner.x, spawner.y + size),
+            new Two.Anchor(spawner.x - size, spawner.y)
         ], true, false);
 
-        const isSelected = selectedSpawner && selectedSpawner.nodeId === spawner.nodeId;
-        diamond.fill = isSelected ? '#f39c12' : '#9b59b6'; // Purple for spawner, orange for selected
+        diamond.fill = '#9b59b6'; // Purple for spawner
         diamond.stroke = '#2c3e50';
         diamond.linewidth = 2;
         two.add(diamond);
+
+        // Draw a line to the first node of the assigned route
+        const route = routes[spawner.routeIndex];
+        if (route && route.length > 0) {
+            const firstNode = nodes[route[0]];
+            if (firstNode) {
+                const line = two.makeLine(spawner.x, spawner.y, firstNode.x, firstNode.y);
+                line.stroke = '#9b59b6';
+                line.linewidth = 2;
+                line.dashes = [5, 5]; // Make it a dashed line
+            }
+        }
     });
 
     // Draw nodes
@@ -481,26 +507,26 @@ two.bind('update', function(frameCount, timeDelta) {
                 spawner.timer = spawner.interval; // Reset timer
 
                 const route = routes[spawner.routeIndex];
-                if (route) {
-                    const startNode = nodes[spawner.nodeId];
-                    cars.push(new Car(startNode, route));
+                if (route && route.length > 0) {
+                    const startNodeId = route[0];
+                    const startNode = nodes[startNodeId];
+                    if (startNode) {
+                        cars.push(new Car(startNode, route));
+                    }
                 }
             }
 
-            // Draw countdown animation
-            const node = nodes[spawner.nodeId];
-            if (node) {
-                const progress = 1 - (spawner.timer / spawner.interval);
-                const radius = 15;
-                const startAngle = 0;
-                const endAngle = progress * Math.PI * 2;
+            // Draw countdown animation at the spawner's location
+            const progress = 1 - (spawner.timer / spawner.interval);
+            const radius = 15;
+            const startAngle = 0;
+            const endAngle = progress * Math.PI * 2;
 
-                if (endAngle > 0.01) { // Avoid drawing tiny arcs
-                    const arc = new Two.ArcSegment(node.x, node.y, radius, radius, startAngle, endAngle);
-                    arc.noFill().stroke = 'rgba(255, 255, 255, 0.8)';
-                    arc.linewidth = 3;
-                    spawnerAnimationsGroup.add(arc);
-                }
+            if (endAngle > 0.01) { // Avoid drawing tiny arcs
+                const arc = new Two.ArcSegment(spawner.x, spawner.y, radius, radius, startAngle, endAngle);
+                arc.noFill().stroke = 'rgba(255, 255, 255, 0.8)';
+                arc.linewidth = 3;
+                spawnerAnimationsGroup.add(arc);
             }
         });
 
