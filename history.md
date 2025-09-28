@@ -1,5 +1,11 @@
 # History
 
+## 2025-09-25
+
+- Merged the road editor with the traffic simulation, allowing users to create custom road layouts.
+- Introduced two modes: 'editor' for drawing roads and 'simulation' for running traffic.
+- Users can now place nodes and connect them to form a road network before starting the simulation.
+
 ## 2025-09-17
 
 - Added collision check for cars.
